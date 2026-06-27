@@ -1,0 +1,8 @@
+{
+  "kiss_sound": {
+    "subtitle": "subtitles.kissmod.kiss_sound",
+    "sounds": [
+      "kissmod:sounds/kiss_sound"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.wally.kissmod.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "PlayerRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

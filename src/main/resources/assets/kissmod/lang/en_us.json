@@ -1,0 +1,16 @@
+{
+  "kissmod.configuration.title": "kissmod Configs",
+  "kissmod.configuration.section.kissmod.common.toml": "kissmod Configs",
+  "kissmod.configuration.section.kissmod.common.toml.title": "kissmod Configs",
+
+  "kissmod.configuration.max_head_distance": "Max Head Distance",
+  "kissmod.configuration.require_look_at_each_other": "Require Eye Contact",
+  "kissmod.configuration.cooldown_seconds": "Cooldown (seconds)",
+  "kissmod.configuration.animation_duration_ticks": "Animation Duration (ticks)",
+  "kissmod.configuration.disable_head_tilt": "Disable Head Tilt",
+  "kissmod.configuration.enable_hearts": "Enable Heart Particles",
+  "kissmod.configuration.apply_regeneration_effect": "Apply Regeneration",
+  "kissmod.configuration.enable_glowing": "Apply Glowing",
+
+  "subtitles.kissmod.kiss_sound": "Kiss"
+}
