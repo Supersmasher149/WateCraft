@@ -28,6 +28,10 @@ sourceSets.main.resources {
 
 repositories {
     // Add here additional repositories if required by some of the dependencies below.
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+    }
 }
 
 base {
@@ -54,6 +58,7 @@ neoForge {
     runs {
         client {
             client()
+            gameDirectory = project.file('run/client1')
 
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
@@ -61,20 +66,27 @@ neoForge {
 
         server {
             server()
+            gameDirectory = project.file('run/server')
             programArgument '--nogui'
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
         clientPlayerOne {
             client()
+            gameDirectory = project.file('run/client1')
             programArgument '--username'
             programArgument 'PlayerOne'
+            programArgument '--quickPlayMultiplayer'
+            programArgument 'localhost'
         }
 
         clientPlayerTwo {
             client()
+            gameDirectory = project.file('run/client2')
             programArgument '--username'
             programArgument 'PlayerTwo'
+            programArgument '--quickPlayMultiplayer'
+            programArgument 'localhost'
         }
 
         // This run config launches GameTestServer and runs all registered gametests, then exits.
@@ -82,6 +94,7 @@ neoForge {
         // The gametest system is also enabled by default for other run configs under the /test command.
         gameTestServer {
             type = "gameTestServer"
+            gameDirectory = project.file('run/gametest')
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
@@ -151,6 +164,7 @@ dependencies {
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
+    localRuntime "maven.modrinth:spark:1.10.124-neoforge-1.21.1"
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

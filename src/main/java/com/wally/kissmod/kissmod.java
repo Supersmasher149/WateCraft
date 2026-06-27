@@ -21,6 +21,7 @@ public class kissmod {
         modEventBus.addListener(Config::onConfigLoad);
 
         NeoForge.EVENT_BUS.register(new KissDetectionHandler());
+        NeoForge.EVENT_BUS.addListener(CommandHandler::onRegisterCommands);
 
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }

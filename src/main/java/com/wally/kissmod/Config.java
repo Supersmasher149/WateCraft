@@ -20,6 +20,9 @@ public class Config {
     public static final ModConfigSpec.BooleanValue ENABLE_REGENERATION;
     public static final ModConfigSpec.BooleanValue ENABLE_GLOWING;
 
+    // Development category
+    public static final ModConfigSpec.BooleanValue DEBUG_MODE;
+
     static {
         BUILDER.push("detection");
         MAX_DISTANCE = BUILDER
@@ -53,13 +56,19 @@ public class Config {
                 .comment("Apply Glowing effect when a kiss finishes")
                 .define("enable_glowing", true);
         BUILDER.pop();
+
+        BUILDER.push("debug");
+        DEBUG_MODE = BUILDER
+                .comment("Enable development-only debugging tools, verbose logs, debug commands, and client debug rendering")
+                .define("debug_mode", false);
+        BUILDER.pop();
     }
 
     static final ModConfigSpec SPEC = BUILDER.build();
 
     public static void onConfigLoad(final ModConfigEvent event) {
         if (event.getConfig().getSpec() == SPEC) {
-            kissmod.LOGGER.info("kissmod config reloaded");
+            KissLog.config("kissmod config reloaded; debugMode={}", DEBUG_MODE.get());
         }
     }
 }

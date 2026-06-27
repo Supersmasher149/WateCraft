@@ -20,152 +20,191 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import java.util.UUID;
 
 public class KissDetectionHandler {
-    private static final double LOOK_THRESHOLD = 0.8;
-    private static final double RAYCAST_RANGE = 3.0;
+    private static final double LOOK_THRESHOLD = 0.8; // Threshold for players to be looking at each other
+    private static final double RAYCAST_RANGE = 3.0; // Maximum distance for line of sight check
+
+    public static double effectiveMaxDistance() {
+        double distance = Config.MAX_DISTANCE.get();
+        return Config.DEBUG_MODE.get() ? distance * 3.0D : distance;
+    }
+
+    public static int effectiveCooldownTicks() {
+        int cooldown = Config.COOLDOWN_SECONDS.get() * 20;
+        return Config.DEBUG_MODE.get() ? Math.min(cooldown, 20) : cooldown;
+    }
 
     @SubscribeEvent
     public void onPlayerTick(PlayerTickEvent.Post event) {
         Player player = event.getEntity();
-        kissmod.LOGGER.info("[kiss] tick for {}", player.getName().getString());
-        if (player.level().isClientSide()) return;
-        kissmod.LOGGER.info("[kiss] isServer, tickCount={}", player.tickCount);
-        if (player.tickCount % 5 != 0) return;
+        KissLog.detection("tick for {}", player.getName().getString());
+        if (player.level().isClientSide()) return; // If on client side, skip processing
+        KissLog.detection("isServer, tickCount={}", player.tickCount);
+        if (player.tickCount % 5 != 0) return; // Only process every 5th tick to reduce load
         if (player.isFallFlying() || player.isSleeping() || player.isPassenger()) {
-            kissmod.LOGGER.info("[kiss] blocked by state (flying={}, sleeping={}, passenger={})",
-                    player.isFallFlying(), player.isSleeping(), player.isPassenger());
+            KissLog.detection("blocked by state (flying={}, sleeping={}, passenger={})",
+                    player.isFallFlying(), player.isSleeping(), player.isPassenger()); // Log if the player is in a blocking state
             return;
         }
 
-        KissPlayerData data = player.getData(ModAttachments.kissData());
+        KissPlayerData data = player.getData(ModAttachments.kissData()); // Get the player's KissPlayerData
 
-        tickCooldown(data);
+        tickCooldown(data); // Decrement the cooldown ticks for this player
 
         if (data.isKissing()) {
-            kissmod.LOGGER.info("[kiss] already kissing, ticking active kiss");
-            tickActiveKiss(player, data);
+            KissLog.detection("already kissing, ticking active kiss");
+            tickActiveKiss(player, data); // Continue the ongoing kiss interaction
             return;
         }
+        if (data.isOptedOut()) return; // Player has opted out of starting kisses
         if (data.getCooldownTicks() > 0) {
-            kissmod.LOGGER.info("[kiss] on cooldown for {} more ticks", data.getCooldownTicks());
+            KissLog.detection("on cooldown for {} more ticks", data.getCooldownTicks());
             return;
         }
 
-        Player target = player.level().getNearestPlayer(player, 2.0D);
+        Player target = player.level().getNearestPlayer(player, effectiveMaxDistance());
         if (target == null) {
-            kissmod.LOGGER.info("[kiss] no nearby player found");
+            KissLog.detection("no nearby player found");
             return;
         }
-        kissmod.LOGGER.info("[kiss] found nearby player {}", target.getName().getString());
+        KissLog.detection("found nearby player {}", target.getName().getString());
 
-        KissPlayerData targetData = target.getData(ModAttachments.kissData());
+        KissPlayerData targetData = target.getData(ModAttachments.kissData()); // Get the target player's KissPlayerData
+        if (targetData.isOptedOut()) {
+            return; // Target has opted out of kissing
+        }
         if (targetData.isKissing() || targetData.getCooldownTicks() > 0) {
-            kissmod.LOGGER.info("[kiss] target is kissing={} or cooldown={}", targetData.isKissing(), targetData.getCooldownTicks());
+            KissLog.detection("target is kissing={} or cooldown={}", targetData.isKissing(), targetData.getCooldownTicks());
             return;
         }
         if (target.isFallFlying() || target.isSleeping() || target.isPassenger()) {
-            kissmod.LOGGER.info("[kiss] target blocked by state");
+            KissLog.detection("target blocked by state");
             return;
         }
 
-        Vec3 eyeA = player.getEyePosition();
-        Vec3 eyeB = target.getEyePosition();
-        double maxDistSq = Config.MAX_DISTANCE.get() * Config.MAX_DISTANCE.get();
-        double dist = eyeA.distanceToSqr(eyeB);
-        kissmod.LOGGER.info("[kiss] eye distance={}, maxDistSq={}", dist, maxDistSq);
+        Vec3 eyeA = player.getEyePosition(); // Get the eye position of the player
+        Vec3 eyeB = target.getEyePosition(); // Get the eye position of the target
+        double maxDistance = effectiveMaxDistance();
+        double maxDistSq = maxDistance * maxDistance; // Calculate the maximum allowed distance squared
+        double dist = eyeA.distanceToSqr(eyeB); // Calculate the squared distance between players
+        KissLog.detection("eye distance={}, maxDistSq={}", dist, maxDistSq);
         if (dist > maxDistSq) {
-            kissmod.LOGGER.info("[kiss] too far apart");
+            KissLog.detection("too far apart");
             return;
         }
 
         if (Config.REQUIRE_LOOK.get()) {
-            Vec3 lookA = player.getLookAngle();
-            Vec3 lookB = target.getLookAngle();
-            Vec3 aToB = eyeB.subtract(eyeA).normalize();
-            Vec3 bToA = eyeA.subtract(eyeB).normalize();
-            double dotA = lookA.dot(aToB);
-            double dotB = lookB.dot(bToA);
-            kissmod.LOGGER.info("[kiss] look dot products: player={}, target={}, threshold={}", dotA, dotB, LOOK_THRESHOLD);
+            Vec3 lookA = player.getLookAngle(); // Get the player's look direction
+            Vec3 lookB = target.getLookAngle(); // Get the target's look direction
+            Vec3 aToB = eyeB.subtract(eyeA).normalize(); // Calculate the normalized vector from player to target
+            Vec3 bToA = eyeA.subtract(eyeB).normalize(); // Calculate the normalized vector from target to player
+            double dotA = lookA.dot(aToB); // Calculate the dot product between player's look direction and aToB
+            double dotB = lookB.dot(bToA); // Calculate the dot product between target's look direction and bToA
+            KissLog.detection("look dot products: player={}, target={}, threshold={}", dotA, dotB, LOOK_THRESHOLD);
             if (dotA <= LOOK_THRESHOLD || dotB <= LOOK_THRESHOLD) {
-                kissmod.LOGGER.info("[kiss] not looking at each other");
+                KissLog.detection("not looking at each other");
                 return;
             }
         }
 
         if (!hasLineOfSight(player, target)) {
-            kissmod.LOGGER.info("[kiss] no line of sight");
+            KissLog.detection("no line of sight");
             return;
         }
 
-        kissmod.LOGGER.info("[kiss] ALL CHECKS PASSED! Starting kiss!");
-        startKiss(player, target);
+        kissmod.LOGGER.info(KissLog.DETECTION, "[KissCraft][Detection] starting kiss: {} -> {}", player.getName().getString(), target.getName().getString());
+        startKiss(player, target); // Start the kiss interaction
     }
 
     private void tickCooldown(KissPlayerData data) {
         if (data.getCooldownTicks() > 0) {
-            data.setCooldownTicks(data.getCooldownTicks() - 1);
-            if (data.getCooldownTicks() < 0) data.setCooldownTicks(0);
+            data.setCooldownTicks(data.getCooldownTicks() - 5); // Decrement the cooldown ticks by 5 (runs every 5 ticks)
+            if (data.getCooldownTicks() < 0) data.setCooldownTicks(0); // Ensure cooldown ticks do not go negative
         }
     }
 
     private void tickActiveKiss(Player player, KissPlayerData data) {
-        UUID targetId = data.getTargetUUID();
+        UUID targetId = data.getTargetUUID(); // Get the UUID of the target player
         if (targetId == null) {
-            endKiss(player);
+            endKiss(player); // If no target UUID is set, end the kiss
             return;
         }
-        Player target = player.level().getPlayerByUUID(targetId);
+
+        // Decrement kiss duration and end if expired
+        if (data.getRemainingKissTicks() > 0) {
+            data.setRemainingKissTicks(data.getRemainingKissTicks() - 5);
+            if (data.getRemainingKissTicks() <= 0) {
+                endKiss(player);
+                return;
+            }
+        }
+
+        Player target = player.level().getPlayerByUUID(targetId); // Get the target player by UUID
         if (target == null || !target.isAlive() || target.distanceToSqr(player) > 16.0) {
-            endKiss(player);
+            endKiss(player); // If the target player is not found or not alive, end the kiss
             return;
         }
-        KissPlayerData targetData = target.getData(ModAttachments.kissData());
+        KissPlayerData targetData = target.getData(ModAttachments.kissData()); // Get the target player's KissPlayerData
         if (!targetData.isKissing() || !targetId.equals(targetData.getTargetUUID())) {
-            endKiss(player);
+            endKiss(player); // If the target is not also kissing, end the kiss
             return;
         }
     }
 
-    private void startKiss(Player player, Player target) {
-        int duration = Config.ANIMATION_DURATION_TICKS.get();
+    public static void startKiss(Player player, Player target) {
+        int duration = Config.ANIMATION_DURATION_TICKS.get(); // Get the duration of the kiss animation
 
-        KissPlayerData data = player.getData(ModAttachments.kissData());
-        data.setKissing(true);
-        data.setTargetUUID(target.getUUID());
+        KissPlayerData data = player.getData(ModAttachments.kissData()); // Get the player's KissPlayerData
+        data.setKissing(true); // Set the player to be kissing
+        data.setTargetUUID(target.getUUID()); // Set the target UUID for the player
+        data.setRemainingKissTicks(duration); // Set the kiss duration
 
-        KissPlayerData targetData = target.getData(ModAttachments.kissData());
-        targetData.setKissing(true);
-        targetData.setTargetUUID(player.getUUID());
+        KissPlayerData targetData = target.getData(ModAttachments.kissData()); // Get the target player's KissPlayerData
+        targetData.setKissing(true); // Set the target to be kissing
+        targetData.setTargetUUID(player.getUUID()); // Set the player UUID as the target for the target
+        targetData.setRemainingKissTicks(duration); // Set the kiss duration
 
-        var packet = new KissStartPayload(player.getUUID(), target.getUUID(), duration);
-        PacketDistributor.sendToPlayersInDimension((ServerLevel) player.level(), packet);
+        var packet = new KissStartPayload(player.getUUID(), target.getUUID(), duration); // Create a packet to start the kiss
+        PacketDistributor.sendToPlayersInDimension((ServerLevel) player.level(), packet); // Send the packet to all players in the dimension
 
-        Vec3 mid = player.getEyePosition().add(target.getEyePosition()).scale(0.5);
+        Vec3 mid = player.getEyePosition().add(target.getEyePosition()).scale(0.5); // Calculate the midpoint between the two players' eyes
         if (Config.ENABLE_HEARTS.get()) {
             ((ServerLevel) player.level()).sendParticles(
-                    ParticleTypes.HEART, mid.x, mid.y, mid.z, 6, 0.3, 0.3, 0.3, 0.0);
+                    ParticleTypes.HEART, mid.x, mid.y, mid.z, 6, 0.3, 0.3, 0.3, 0.0); // Send heart particles at the midpoint
         }
 
         player.level().playSound(null, mid.x, mid.y, mid.z,
-                Sounds.KISS_SOUND.get(), SoundSource.PLAYERS, 0.8f, 1.0f);
+                Sounds.KISS_SOUND.get(), SoundSource.PLAYERS, 0.8f, 1.0f); // Play a kiss sound at the midpoint
     }
 
-    private void endKiss(Player player) {
+    public static void endKiss(Player player) {
         KissPlayerData data = player.getData(ModAttachments.kissData());
-        data.setKissing(false);
+        if (!data.isKissing()) return;
+
         UUID targetId = data.getTargetUUID();
+        data.setKissing(false);
         data.setTargetUUID(null);
-        data.setCooldownTicks(Config.COOLDOWN_SECONDS.get() * 20);
+        data.setCooldownTicks(effectiveCooldownTicks());
+        data.setRemainingKissTicks(0);
 
         if (targetId != null) {
             Player target = player.level().getPlayerByUUID(targetId);
+            // Fall back to server-wide lookup if target is in a different dimension
+            if (target == null && player.getServer() != null) {
+                target = player.getServer().getPlayerList().getPlayer(targetId);
+            }
             if (target != null) {
                 KissPlayerData targetData = target.getData(ModAttachments.kissData());
                 targetData.setKissing(false);
                 targetData.setTargetUUID(null);
-                targetData.setCooldownTicks(Config.COOLDOWN_SECONDS.get() * 20);
+                targetData.setCooldownTicks(effectiveCooldownTicks());
+                targetData.setRemainingKissTicks(0);
 
                 if (target instanceof ServerPlayer spTarget) {
-                    PacketDistributor.sendToPlayersInDimension((ServerLevel) player.level(),
+                    if (Config.ENABLE_REGENERATION.get())
+                        spTarget.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 100, 0));
+                    if (Config.ENABLE_GLOWING.get())
+                        spTarget.addEffect(new MobEffectInstance(MobEffects.GLOWING, 200, 0));
+                    PacketDistributor.sendToPlayersInDimension((ServerLevel) target.level(),
                             new KissEndPayload(spTarget.getUUID()));
                 }
             }
@@ -175,32 +214,30 @@ public class KissDetectionHandler {
             PacketDistributor.sendToPlayersInDimension((ServerLevel) player.level(),
                     new KissEndPayload(sp.getUUID()));
 
-            if (Config.ENABLE_REGENERATION.get()) {
+            if (Config.ENABLE_REGENERATION.get())
                 sp.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 100, 0));
-            }
-            if (Config.ENABLE_GLOWING.get()) {
+            if (Config.ENABLE_GLOWING.get())
                 sp.addEffect(new MobEffectInstance(MobEffects.GLOWING, 200, 0));
-            }
         }
     }
 
-    private boolean hasLineOfSight(Player a, Player b) {
-        Vec3 from = a.getEyePosition();
-        Vec3 to = b.getEyePosition();
-        Vec3 diff = to.subtract(from);
-        if (diff.lengthSqr() > RAYCAST_RANGE * RAYCAST_RANGE) return false;
+    public static boolean hasLineOfSight(Player a, Player b) {
+        Vec3 from = a.getEyePosition(); // Get the eye position of player A
+        Vec3 to = b.getEyePosition(); // Get the eye position of player B
+        Vec3 diff = to.subtract(from); // Calculate the vector from player A to player B
+        if (diff.lengthSqr() > RAYCAST_RANGE * RAYCAST_RANGE) return false; // If distance is greater than raycast range, no line of sight
         var hit = a.level().clip(new net.minecraft.world.level.ClipContext(
                 from, to,
                 net.minecraft.world.level.ClipContext.Block.COLLIDER,
-                net.minecraft.world.level.ClipContext.Fluid.NONE, a));
-        return hit.getType() == HitResult.Type.MISS || hit.getLocation().distanceToSqr(to) < 0.25;
+                net.minecraft.world.level.ClipContext.Fluid.NONE, a)); // Perform raycasting
+        return hit.getType() == HitResult.Type.MISS || hit.getLocation().distanceToSqr(to) < 0.25; // Check if there is line of sight
     }
 
     @SubscribeEvent
     public void onPlayerDamage(LivingDamageEvent.Post event) {
         if (event.getEntity() instanceof Player player && !player.level().isClientSide()) {
-            KissPlayerData data = player.getData(ModAttachments.kissData());
-            if (data.isKissing()) endKiss(player);
+            KissPlayerData data = player.getData(ModAttachments.kissData()); // Get the player's KissPlayerData
+            if (data.isKissing()) endKiss(player); // End the kiss if the player is damaged
         }
     }
 
@@ -208,7 +245,20 @@ public class KissDetectionHandler {
     public void onPlayerDisconnect(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof Player player && !player.level().isClientSide()) {
             KissPlayerData data = player.getData(ModAttachments.kissData());
-            if (data.isKissing()) endKiss(player);
+            if (data.isKissing()) {
+                UUID targetId = data.getTargetUUID();
+                endKiss(player);
+                // Ensure partner's state is cleared even if they are in a different dimension
+                if (targetId != null && player.getServer() != null) {
+                    Player partner = player.getServer().getPlayerList().getPlayer(targetId);
+                    if (partner != null) {
+                        KissPlayerData partnerData = partner.getData(ModAttachments.kissData());
+                        if (partnerData.isKissing()) {
+                            endKiss(partner);
+                        }
+                    }
+                }
+            }
         }
     }
 }
