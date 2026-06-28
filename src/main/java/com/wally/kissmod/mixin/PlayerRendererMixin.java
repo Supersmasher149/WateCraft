@@ -30,7 +30,12 @@ public class PlayerRendererMixin {
 
         // Cast the current instance to PlayerModel and apply custom animations
         PlayerModel<?> model = (PlayerModel<?>) (Object) this;
-        float tilt = 0.12F; // Define the amount of tilt
+
+        // Scale tilt by remaining duration for smooth fade-in/fade-out
+        int remaining = data.getRemainingKissTicks();
+        int duration = Config.ANIMATION_DURATION_TICKS.get();
+        float progress = Math.max(0.0F, Math.min(1.0F, (float) remaining / duration));
+        float tilt = 0.12F * progress;
 
         // Apply head rotation to create a kiss effect
         model.head.xRot += tilt; // Tilt the head forward slightly

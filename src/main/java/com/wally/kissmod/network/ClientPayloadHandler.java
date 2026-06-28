@@ -27,6 +27,7 @@ public class ClientPayloadHandler {
                 KissPlayerData data = player.getData(ModAttachments.kissData());
                 data.setKissing(false);
                 data.setTargetUUID(null);
+                data.setRemainingKissTicks(0);
             }
         });
     }

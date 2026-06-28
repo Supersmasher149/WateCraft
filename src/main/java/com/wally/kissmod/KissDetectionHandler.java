@@ -21,7 +21,6 @@ import java.util.UUID;
 
 public class KissDetectionHandler {
     private static final double LOOK_THRESHOLD = 0.8; // Threshold for players to be looking at each other
-    private static final double RAYCAST_RANGE = 3.0; // Maximum distance for line of sight check
 
     public static double effectiveMaxDistance() {
         double distance = Config.MAX_DISTANCE.get();
@@ -61,7 +60,13 @@ public class KissDetectionHandler {
             return;
         }
 
-        Player target = player.level().getNearestPlayer(player, effectiveMaxDistance());
+        double maxDist = effectiveMaxDistance();
+        double maxDistSq = maxDist * maxDist;
+        Vec3 eyePos = player.getEyePosition();
+        Player target = player.level().players().stream()
+                .filter(other -> other != player && other.getEyePosition().distanceToSqr(eyePos) <= maxDistSq)
+                .min(java.util.Comparator.comparingDouble(other -> other.getEyePosition().distanceToSqr(eyePos)))
+                .orElse(null);
         if (target == null) {
             KissLog.detection("no nearby player found");
             return;
@@ -81,11 +86,8 @@ public class KissDetectionHandler {
             return;
         }
 
-        Vec3 eyeA = player.getEyePosition(); // Get the eye position of the player
         Vec3 eyeB = target.getEyePosition(); // Get the eye position of the target
-        double maxDistance = effectiveMaxDistance();
-        double maxDistSq = maxDistance * maxDistance; // Calculate the maximum allowed distance squared
-        double dist = eyeA.distanceToSqr(eyeB); // Calculate the squared distance between players
+        double dist = eyePos.distanceToSqr(eyeB); // Calculate the squared distance between players
         KissLog.detection("eye distance={}, maxDistSq={}", dist, maxDistSq);
         if (dist > maxDistSq) {
             KissLog.detection("too far apart");
@@ -95,8 +97,8 @@ public class KissDetectionHandler {
         if (Config.REQUIRE_LOOK.get()) {
             Vec3 lookA = player.getLookAngle(); // Get the player's look direction
             Vec3 lookB = target.getLookAngle(); // Get the target's look direction
-            Vec3 aToB = eyeB.subtract(eyeA).normalize(); // Calculate the normalized vector from player to target
-            Vec3 bToA = eyeA.subtract(eyeB).normalize(); // Calculate the normalized vector from target to player
+            Vec3 aToB = eyeB.subtract(eyePos).normalize(); // Calculate the normalized vector from player to target
+            Vec3 bToA = eyePos.subtract(eyeB).normalize(); // Calculate the normalized vector from target to player
             double dotA = lookA.dot(aToB); // Calculate the dot product between player's look direction and aToB
             double dotB = lookB.dot(bToA); // Calculate the dot product between target's look direction and bToA
             KissLog.detection("look dot products: player={}, target={}, threshold={}", dotA, dotB, LOOK_THRESHOLD);
@@ -168,8 +170,17 @@ public class KissDetectionHandler {
 
         Vec3 mid = player.getEyePosition().add(target.getEyePosition()).scale(0.5); // Calculate the midpoint between the two players' eyes
         if (Config.ENABLE_HEARTS.get()) {
-            ((ServerLevel) player.level()).sendParticles(
+            ServerLevel level = (ServerLevel) player.level();
+            level.sendParticles(
                     ParticleTypes.HEART, mid.x, mid.y, mid.z, 6, 0.3, 0.3, 0.3, 0.0); // Send heart particles at the midpoint
+            double radius = 1.5;
+            int count = 20;
+            for (int i = 0; i < count; i++) {
+                double angle = 2.0 * Math.PI * i / count;
+                double x = mid.x + radius * Math.cos(angle);
+                double z = mid.z + radius * Math.sin(angle);
+                level.sendParticles(ParticleTypes.HEART, x, mid.y, z, 1, 0.0, 0.0, 0.0, 0.0);
+            }
         }
 
         player.level().playSound(null, mid.x, mid.y, mid.z,
@@ -225,7 +236,8 @@ public class KissDetectionHandler {
         Vec3 from = a.getEyePosition(); // Get the eye position of player A
         Vec3 to = b.getEyePosition(); // Get the eye position of player B
         Vec3 diff = to.subtract(from); // Calculate the vector from player A to player B
-        if (diff.lengthSqr() > RAYCAST_RANGE * RAYCAST_RANGE) return false; // If distance is greater than raycast range, no line of sight
+        double maxDist = effectiveMaxDistance();
+        if (diff.lengthSqr() > maxDist * maxDist) return false; // If distance is greater than effective max distance, no line of sight
         var hit = a.level().clip(new net.minecraft.world.level.ClipContext(
                 from, to,
                 net.minecraft.world.level.ClipContext.Block.COLLIDER,
