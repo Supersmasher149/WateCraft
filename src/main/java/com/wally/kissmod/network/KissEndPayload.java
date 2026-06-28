@@ -9,21 +9,20 @@ import net.minecraft.resources.ResourceLocation;
 import java.util.UUID;
 
 public record KissEndPayload(UUID playerUUID) implements CustomPacketPayload {
+    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(kissmod.MODID, "kiss_end");
+    public static final CustomPacketPayload.Type<KissEndPayload> TYPE = new CustomPacketPayload.Type<>(ID);
+
     private static final StreamCodec<RegistryFriendlyByteBuf, UUID> UUID_STREAM_CODEC =
             new StreamCodec<>() {
                 @Override
                 public UUID decode(RegistryFriendlyByteBuf buf) {
                     return buf.readUUID();
                 }
-
                 @Override
                 public void encode(RegistryFriendlyByteBuf buf, UUID value) {
                     buf.writeUUID(value);
                 }
             };
-
-    public static final CustomPacketPayload.Type<KissEndPayload> TYPE =
-            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(kissmod.MODID, "kiss_end"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, KissEndPayload> STREAM_CODEC =
             StreamCodec.composite(

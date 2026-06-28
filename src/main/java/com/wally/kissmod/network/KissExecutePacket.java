@@ -9,29 +9,28 @@ import net.minecraft.resources.ResourceLocation;
 
 import java.util.UUID;
 
-public record KissStartPayload(UUID playerUUID, UUID targetUUID, int durationTicks) implements CustomPacketPayload {
+public record KissExecutePacket(UUID kisserUUID, UUID targetUUID, int durationTicks) implements CustomPacketPayload {
+    public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(kissmod.MODID, "kiss_execute");
+    public static final CustomPacketPayload.Type<KissExecutePacket> TYPE = new CustomPacketPayload.Type<>(ID);
+
     private static final StreamCodec<RegistryFriendlyByteBuf, UUID> UUID_STREAM_CODEC =
             new StreamCodec<>() {
                 @Override
                 public UUID decode(RegistryFriendlyByteBuf buf) {
                     return buf.readUUID();
                 }
-
                 @Override
                 public void encode(RegistryFriendlyByteBuf buf, UUID value) {
                     buf.writeUUID(value);
                 }
             };
 
-    public static final CustomPacketPayload.Type<KissStartPayload> TYPE =
-            new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(kissmod.MODID, "kiss_start"));
-
-    public static final StreamCodec<RegistryFriendlyByteBuf, KissStartPayload> STREAM_CODEC =
+    public static final StreamCodec<RegistryFriendlyByteBuf, KissExecutePacket> STREAM_CODEC =
             StreamCodec.composite(
-                    UUID_STREAM_CODEC, KissStartPayload::playerUUID,
-                    UUID_STREAM_CODEC, KissStartPayload::targetUUID,
-                    ByteBufCodecs.VAR_INT, KissStartPayload::durationTicks,
-                    KissStartPayload::new
+                    UUID_STREAM_CODEC, KissExecutePacket::kisserUUID,
+                    UUID_STREAM_CODEC, KissExecutePacket::targetUUID,
+                    ByteBufCodecs.VAR_INT, KissExecutePacket::durationTicks,
+                    KissExecutePacket::new
             );
 
     @Override

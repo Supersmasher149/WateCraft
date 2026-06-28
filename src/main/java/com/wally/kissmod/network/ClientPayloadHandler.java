@@ -1,19 +1,38 @@
 package com.wally.kissmod.network;
 
 import com.wally.kissmod.KissPlayerData;
+import com.wally.kissmod.KissPromptOverlay;
 import com.wally.kissmod.ModAttachments;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public class ClientPayloadHandler {
-    public static void handleKissStart(final KissStartPayload payload, final IPayloadContext context) {
+    public static void handleKissPrompt(final KissPromptPacket payload, final IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!context.player().level().isClientSide()) return;
-            var player = Minecraft.getInstance().level.getPlayerByUUID(payload.playerUUID());
-            if (player != null) {
-                KissPlayerData data = player.getData(ModAttachments.kissData());
+            KissPromptOverlay.showPrompt(payload.requesterUUID(), payload.requesterName());
+        });
+    }
+
+    public static void handleKissExecute(final KissExecutePacket payload, final IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!context.player().level().isClientSide()) return;
+            var level = Minecraft.getInstance().level;
+            if (level == null) return;
+
+            var kisser = level.getPlayerByUUID(payload.kisserUUID());
+            var target = level.getPlayerByUUID(payload.targetUUID());
+
+            if (kisser != null) {
+                KissPlayerData data = kisser.getData(ModAttachments.kissData());
                 data.setKissing(true);
                 data.setTargetUUID(payload.targetUUID());
+                data.setRemainingKissTicks(payload.durationTicks());
+            }
+            if (target != null) {
+                KissPlayerData data = target.getData(ModAttachments.kissData());
+                data.setKissing(true);
+                data.setTargetUUID(payload.kisserUUID());
                 data.setRemainingKissTicks(payload.durationTicks());
             }
         });
@@ -22,7 +41,10 @@ public class ClientPayloadHandler {
     public static void handleKissEnd(final KissEndPayload payload, final IPayloadContext context) {
         context.enqueueWork(() -> {
             if (!context.player().level().isClientSide()) return;
-            var player = Minecraft.getInstance().level.getPlayerByUUID(payload.playerUUID());
+            var level = Minecraft.getInstance().level;
+            if (level == null) return;
+
+            var player = level.getPlayerByUUID(payload.playerUUID());
             if (player != null) {
                 KissPlayerData data = player.getData(ModAttachments.kissData());
                 data.setKissing(false);

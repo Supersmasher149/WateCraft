@@ -75,7 +75,8 @@ public class CommandHandler {
                 + ", target=" + data.getTargetUUID()
                 + ", cooldownTicks=" + data.getCooldownTicks()
                 + ", remainingKissTicks=" + data.getRemainingKissTicks()
-                + ", optedOut=" + data.isOptedOut()), false);
+                + ", optedOut=" + data.isOptedOut()
+                + ", requestCooldownRemaining=" + RequestManager.getCooldownRemaining(player.getUUID()) / 1000 + "s"), false);
         return 1;
     }
 

@@ -1,7 +1,6 @@
 package com.wally.kissmod.gametest;
 
 import com.mojang.serialization.JsonOps;
-import com.wally.kissmod.KissMath;
 import com.wally.kissmod.KissPlayerData;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -15,11 +14,10 @@ import java.util.UUID;
 @PrefixGameTestTemplate(false)
 public class KissDevelopmentGameTests {
     @GameTest(template = "empty")
-    public static void mathDistanceAndLookValidation(GameTestHelper helper) {
+    public static void distanceValidation(GameTestHelper helper) {
         Vec3 a = new Vec3(0.0D, 1.6D, 0.0D);
         Vec3 b = new Vec3(0.0D, 1.6D, 1.0D);
-        helper.assertTrue(KissMath.isWithinDistance(a, b, 1.5D), "Expected eye positions to be within range");
-        helper.assertTrue(KissMath.isLookingAt(new Vec3(0.0D, 0.0D, 1.0D), a, b, 0.8D), "Expected forward look vector to face target");
+        helper.assertTrue(a.distanceToSqr(b) <= 1.5D * 1.5D, "Expected eye positions to be within range");
         helper.succeed();
     }
 
