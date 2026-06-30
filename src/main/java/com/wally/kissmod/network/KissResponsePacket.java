@@ -8,6 +8,7 @@ import com.wally.kissmod.ModAttachments;
 import com.wally.kissmod.RequestManager;
 import com.wally.kissmod.kissmod;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -33,22 +34,10 @@ public record KissResponsePacket(UUID requesterUUID, boolean accepted) implement
                 }
             };
 
-    private static final StreamCodec<RegistryFriendlyByteBuf, Boolean> BOOL_STREAM_CODEC =
-            new StreamCodec<>() {
-                @Override
-                public Boolean decode(RegistryFriendlyByteBuf buf) {
-                    return buf.readBoolean();
-                }
-                @Override
-                public void encode(RegistryFriendlyByteBuf buf, Boolean value) {
-                    buf.writeBoolean(value);
-                }
-            };
-
     public static final StreamCodec<RegistryFriendlyByteBuf, KissResponsePacket> STREAM_CODEC =
             StreamCodec.composite(
                     UUID_STREAM_CODEC, KissResponsePacket::requesterUUID,
-                    BOOL_STREAM_CODEC, KissResponsePacket::accepted,
+                    ByteBufCodecs.BOOL, KissResponsePacket::accepted,
                     KissResponsePacket::new
             );
 

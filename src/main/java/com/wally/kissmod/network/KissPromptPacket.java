@@ -2,6 +2,7 @@ package com.wally.kissmod.network;
 
 import com.wally.kissmod.kissmod;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -24,22 +25,10 @@ public record KissPromptPacket(UUID requesterUUID, String requesterName) impleme
                 }
             };
 
-    private static final StreamCodec<RegistryFriendlyByteBuf, String> STRING_STREAM_CODEC =
-            new StreamCodec<>() {
-                @Override
-                public String decode(RegistryFriendlyByteBuf buf) {
-                    return buf.readUtf();
-                }
-                @Override
-                public void encode(RegistryFriendlyByteBuf buf, String value) {
-                    buf.writeUtf(value);
-                }
-            };
-
     public static final StreamCodec<RegistryFriendlyByteBuf, KissPromptPacket> STREAM_CODEC =
             StreamCodec.composite(
                     UUID_STREAM_CODEC, KissPromptPacket::requesterUUID,
-                    STRING_STREAM_CODEC, KissPromptPacket::requesterName,
+                    ByteBufCodecs.STRING_UTF8, KissPromptPacket::requesterName,
                     KissPromptPacket::new
             );
 

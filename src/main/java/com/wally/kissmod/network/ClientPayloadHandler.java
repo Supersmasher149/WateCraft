@@ -6,6 +6,8 @@ import com.wally.kissmod.ModAttachments;
 import net.minecraft.client.Minecraft;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
+import java.util.UUID;
+
 public class ClientPayloadHandler {
     public static void handleKissPrompt(final KissPromptPacket payload, final IPayloadContext context) {
         context.enqueueWork(() -> {
@@ -44,13 +46,20 @@ public class ClientPayloadHandler {
             var level = Minecraft.getInstance().level;
             if (level == null) return;
 
-            var player = level.getPlayerByUUID(payload.playerUUID());
-            if (player != null) {
-                KissPlayerData data = player.getData(ModAttachments.kissData());
-                data.setKissing(false);
-                data.setTargetUUID(null);
-                data.setRemainingKissTicks(0);
+            clearKissState(level, payload.playerUUID());
+            if (payload.partnerUUID() != null) {
+                clearKissState(level, payload.partnerUUID());
             }
         });
+    }
+
+    private static void clearKissState(net.minecraft.client.multiplayer.ClientLevel level, UUID uuid) {
+        var player = level.getPlayerByUUID(uuid);
+        if (player != null) {
+            KissPlayerData data = player.getData(ModAttachments.kissData());
+            data.setKissing(false);
+            data.setTargetUUID(null);
+            data.setRemainingKissTicks(0);
+        }
     }
 }

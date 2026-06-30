@@ -124,6 +124,9 @@ public class KissDetectionHandler {
         targetData.setTargetUUID(player.getUUID());
         targetData.setRemainingKissTicks(duration);
 
+        data.setTotalKisses(data.getTotalKisses() + 1);
+        targetData.setTotalKisses(targetData.getTotalKisses() + 1);
+
         var packet = new KissExecutePacket(player.getUUID(), target.getUUID(), duration);
         PacketDistributor.sendToPlayersInDimension((ServerLevel) player.level(), packet);
 
@@ -173,8 +176,8 @@ public class KissDetectionHandler {
                 RequestManager.setCooldown(target.getUUID());
 
                 if (target instanceof ServerPlayer spTarget) {
-                    PacketDistributor.sendToPlayersInDimension((ServerLevel) target.level(),
-                            new KissEndPayload(spTarget.getUUID()));
+                    PacketDistributor.sendToPlayer(spTarget,
+                            new KissEndPayload(spTarget.getUUID(), player.getUUID()));
 
                     if (Config.ENABLE_REGENERATION.get())
                         spTarget.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 100, 0));
@@ -185,8 +188,8 @@ public class KissDetectionHandler {
         }
 
         if (player instanceof ServerPlayer sp) {
-            PacketDistributor.sendToPlayersInDimension((ServerLevel) player.level(),
-                    new KissEndPayload(sp.getUUID()));
+            PacketDistributor.sendToPlayer(sp,
+                    new KissEndPayload(sp.getUUID(), targetId));
 
             if (Config.ENABLE_REGENERATION.get())
                 sp.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 100, 0));
