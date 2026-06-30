@@ -11,6 +11,13 @@
   "kissmod.configuration.enable_hearts": "Enable Heart Particles",
   "kissmod.configuration.apply_regeneration_effect": "Apply Regeneration",
   "kissmod.configuration.enable_glowing": "Apply Glowing",
+  "kissmod.configuration.enable_chat_message": "Enable Chat Message",
 
-  "subtitles.kissmod.kiss_sound": "Kiss"
+  "subtitles.kissmod.kiss_sound": "Kiss",
+
+  "key.categories.kissmod": "KissCraft",
+  "key.kissmod.stats": "Open Kiss Stats",
+  "kissmod.stats_screen.title": "Kiss Stats",
+
+  "chat.kissmod.kiss_ended": "%s and %s kissed!"
 }

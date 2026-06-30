@@ -1,6 +1,6 @@
 package com.wally.kissmod.mixin;
 
-import com.wally.kissmod.Config;
+import com.wally.kissmod.KissAnimator;
 import com.wally.kissmod.KissPlayerData;
 import com.wally.kissmod.ModAttachments;
 import net.minecraft.client.model.PlayerModel;
@@ -16,30 +16,9 @@ public class PlayerRendererMixin {
 
     @Inject(method = "setupAnim", at = @At("TAIL"))
     private void kissmod$onSetupAnim(LivingEntity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch, CallbackInfo ci) {
-        // Check if the entity is an instance of AbstractClientPlayer
         if (!(entity instanceof AbstractClientPlayer player)) return;
-
-        // Check if head tilting is disabled in the configuration
-        if (Config.DISABLE_HEAD_TILT.get()) return;
-
-        // Get the KissPlayerData for the player
         KissPlayerData data = player.getData(ModAttachments.kissData());
-
-        // Check if the player is currently kissing someone
-        if (!data.isKissing()) return;
-
-        // Cast the current instance to PlayerModel and apply custom animations
         PlayerModel<?> model = (PlayerModel<?>) (Object) this;
-
-        // Scale tilt by remaining duration for smooth fade-in/fade-out
-        int remaining = data.getRemainingKissTicks();
-        int duration = Config.ANIMATION_DURATION_TICKS.get();
-        float progress = Math.max(0.0F, Math.min(1.0F, (float) remaining / duration));
-        float tilt = 0.12F * progress;
-
-        // Apply head rotation to create a kiss effect
-        model.head.xRot += tilt; // Tilt the head forward slightly
-        model.head.zRot += tilt * 0.3F; // Tilt the head side-to-side slightly
-        model.body.xRot += tilt * 0.4F; // Tilt the body forward slightly to match head movement
+        KissAnimator.apply(model, entity, data, ageInTicks);
     }
 }

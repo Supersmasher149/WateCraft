@@ -2,6 +2,7 @@ package com.wally.kissmod;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -12,6 +13,21 @@ public class KissPlayerData {
     private int cooldownTicks;
     private int remainingKissTicks;
     private boolean optedOut;
+    private int totalKisses;
+
+    private KissPhase kissPhase = KissPhase.NONE;
+    private int kissPhaseTicks;
+    private Vec3 originalPos;
+    private Vec3 hugPos;
+
+    public static final int ENTER_TICKS = 10;
+    public static final int EXIT_TICKS = 10;
+
+    public static KissPhase inferPhase(int remainingTicks, int duration) {
+        if (remainingTicks <= EXIT_TICKS) return KissPhase.EXITING;
+        if (remainingTicks > duration - ENTER_TICKS) return KissPhase.ENTERING;
+        return KissPhase.HOLDING;
+    }
 
     public KissPlayerData() {
         this.kissing = false;
@@ -19,42 +35,44 @@ public class KissPlayerData {
         this.cooldownTicks = 0;
         this.remainingKissTicks = 0;
         this.optedOut = false;
+        this.totalKisses = 0;
     }
 
-    public KissPlayerData(boolean kissing, UUID targetUUID, int cooldownTicks, int remainingKissTicks, boolean optedOut) {
+    public KissPlayerData(boolean kissing, UUID targetUUID, int cooldownTicks, int remainingKissTicks, boolean optedOut, int totalKisses) {
         this.kissing = kissing;
         this.targetUUID = targetUUID;
         this.cooldownTicks = cooldownTicks;
         this.remainingKissTicks = remainingKissTicks;
         this.optedOut = optedOut;
+        this.totalKisses = totalKisses;
     }
 
-    // Getter for the "kissing" status
     public boolean isKissing() {
         return kissing;
     }
 
-    // Setter for the "kissing" status
     public void setKissing(boolean v) {
         this.kissing = v;
+        if (!v) {
+            this.kissPhase = KissPhase.NONE;
+            this.kissPhaseTicks = 0;
+            this.originalPos = null;
+            this.hugPos = null;
+        }
     }
 
-    // Getter for the target UUID
     public UUID getTargetUUID() {
         return targetUUID;
     }
 
-    // Setter for the target UUID
     public void setTargetUUID(UUID v) {
         this.targetUUID = v;
     }
 
-    // Getter for the remaining cooldown ticks
     public int getCooldownTicks() {
         return cooldownTicks;
     }
 
-    // Setter for the remaining cooldown ticks
     public void setCooldownTicks(int v) {
         this.cooldownTicks = v;
     }
@@ -75,17 +93,59 @@ public class KissPlayerData {
         this.optedOut = v;
     }
 
+    public int getTotalKisses() {
+        return totalKisses;
+    }
+
+    public void setTotalKisses(int v) {
+        this.totalKisses = v;
+    }
+
+    public KissPhase getKissPhase() {
+        return kissPhase;
+    }
+
+    public void setKissPhase(KissPhase phase) {
+        this.kissPhase = phase;
+    }
+
+    public int getKissPhaseTicks() {
+        return kissPhaseTicks;
+    }
+
+    public void setKissPhaseTicks(int ticks) {
+        this.kissPhaseTicks = ticks;
+    }
+
+    public Vec3 getOriginalPos() {
+        return originalPos;
+    }
+
+    public void setOriginalPos(Vec3 pos) {
+        this.originalPos = pos;
+    }
+
+    public Vec3 getHugPos() {
+        return hugPos;
+    }
+
+    public void setHugPos(Vec3 pos) {
+        this.hugPos = pos;
+    }
+
     public static final Codec<KissPlayerData> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.BOOL.fieldOf("kissing").forGetter(KissPlayerData::isKissing),
             Codec.STRING.optionalFieldOf("targetUUID").forGetter(data -> Optional.ofNullable(data.getTargetUUID()).map(UUID::toString)),
             Codec.INT.fieldOf("cooldownTicks").forGetter(KissPlayerData::getCooldownTicks),
             Codec.INT.optionalFieldOf("remainingKissTicks", 0).forGetter(KissPlayerData::getRemainingKissTicks),
-            Codec.BOOL.optionalFieldOf("optedOut", false).forGetter(KissPlayerData::isOptedOut)
-    ).apply(instance, (kissing, targetUUID, cooldownTicks, remainingKissTicks, optedOut) -> new KissPlayerData(
+            Codec.BOOL.optionalFieldOf("optedOut", false).forGetter(KissPlayerData::isOptedOut),
+            Codec.INT.optionalFieldOf("totalKisses", 0).forGetter(KissPlayerData::getTotalKisses)
+    ).apply(instance, (kissing, targetUUID, cooldownTicks, remainingKissTicks, optedOut, totalKisses) -> new KissPlayerData(
             kissing,
             targetUUID.filter(s -> !s.isEmpty()).map(UUID::fromString).orElse(null),
             cooldownTicks,
             remainingKissTicks,
-            optedOut
+            optedOut,
+            totalKisses
     )));
 }

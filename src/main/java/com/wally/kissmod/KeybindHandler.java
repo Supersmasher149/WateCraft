@@ -18,6 +18,7 @@ import org.lwjgl.glfw.GLFW;
 public class KeybindHandler {
     public static final String KEY_CATEGORY = "key.categories.kissmod";
     public static final String KEY_KISS = "key.kissmod.kiss";
+    public static final String KEY_STATS = "key.kissmod.stats";
 
     public static final KeyMapping KISS_KEY = new KeyMapping(
             KEY_KISS,
@@ -27,11 +28,20 @@ public class KeybindHandler {
             KEY_CATEGORY
     );
 
+    public static final KeyMapping STATS_KEY = new KeyMapping(
+            KEY_STATS,
+            KeyConflictContext.IN_GAME,
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_K,
+            KEY_CATEGORY
+    );
+
     private static long lastPressTime = 0;
     private static final long RATE_LIMIT_MS = 500;
 
     public static void register(RegisterKeyMappingsEvent event) {
         event.register(KISS_KEY);
+        event.register(STATS_KEY);
     }
 
     public static void onClientTick(ClientTickEvent.Post event) {

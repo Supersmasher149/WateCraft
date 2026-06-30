@@ -19,6 +19,7 @@ public class Config {
     public static final ModConfigSpec.BooleanValue ENABLE_HEARTS;
     public static final ModConfigSpec.BooleanValue ENABLE_REGENERATION;
     public static final ModConfigSpec.BooleanValue ENABLE_GLOWING;
+    public static final ModConfigSpec.BooleanValue ENABLE_CHAT_MESSAGE;
 
     // Development category
     public static final ModConfigSpec.BooleanValue DEBUG_MODE;
@@ -55,6 +56,9 @@ public class Config {
         ENABLE_GLOWING = BUILDER
                 .comment("Apply Glowing effect when a kiss finishes")
                 .define("enable_glowing", true);
+        ENABLE_CHAT_MESSAGE = BUILDER
+                .comment("Broadcast a chat message to all players when a kiss ends naturally")
+                .define("enable_chat_message", true);
         BUILDER.pop();
 
         BUILDER.push("debug");

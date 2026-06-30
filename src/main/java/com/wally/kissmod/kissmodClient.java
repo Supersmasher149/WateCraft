@@ -33,17 +33,26 @@ public class kissmodClient {
     }
 
     private static void onClientTick(final ClientTickEvent.Post event) {
-        var level = Minecraft.getInstance().level;
+        Minecraft mc = Minecraft.getInstance();
+
+        while (KeybindHandler.STATS_KEY.consumeClick()) {
+            if (mc.player == null) continue;
+            if (mc.screen instanceof KissStatsScreen) {
+                mc.setScreen(null);
+            } else if (mc.screen == null) {
+                mc.setScreen(new KissStatsScreen());
+            }
+        }
+
+        var level = mc.level;
         if (level == null) return;
+        if (mc.player == null || mc.player.tickCount % 5 != 0) return;
         for (var player : level.players()) {
             KissPlayerData data = player.getData(ModAttachments.kissData());
             if (!data.isKissing()) continue;
-            if (data.getRemainingKissTicks() <= 0) {
-                data.setKissing(false);
-                data.setTargetUUID(null);
-                continue;
-            }
-            data.setRemainingKissTicks(data.getRemainingKissTicks() - 1);
+            if (data.getRemainingKissTicks() <= 0) continue;
+            data.setRemainingKissTicks(data.getRemainingKissTicks() - 5);
+            if (data.getRemainingKissTicks() < 0) data.setRemainingKissTicks(0);
         }
     }
 }

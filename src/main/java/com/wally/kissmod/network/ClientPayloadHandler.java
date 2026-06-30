@@ -30,12 +30,16 @@ public class ClientPayloadHandler {
                 data.setKissing(true);
                 data.setTargetUUID(payload.targetUUID());
                 data.setRemainingKissTicks(payload.durationTicks());
+                data.setOriginalPos(payload.originalPosKisser());
+                data.setHugPos(payload.kisserHugPos());
             }
             if (target != null) {
                 KissPlayerData data = target.getData(ModAttachments.kissData());
                 data.setKissing(true);
                 data.setTargetUUID(payload.kisserUUID());
                 data.setRemainingKissTicks(payload.durationTicks());
+                data.setOriginalPos(payload.originalPosTarget());
+                data.setHugPos(payload.targetHugPos());
             }
         });
     }

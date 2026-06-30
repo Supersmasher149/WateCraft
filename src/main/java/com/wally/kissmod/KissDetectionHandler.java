@@ -3,6 +3,7 @@ package com.wally.kissmod;
 import com.wally.kissmod.network.KissEndPayload;
 import com.wally.kissmod.network.KissExecutePacket;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -87,27 +88,51 @@ public class KissDetectionHandler {
     private void tickActiveKiss(Player player, KissPlayerData data) {
         UUID targetId = data.getTargetUUID();
         if (targetId == null) {
-            endKiss(player);
+            beginExit(player, data);
             return;
         }
 
         if (data.getRemainingKissTicks() > 0) {
             data.setRemainingKissTicks(data.getRemainingKissTicks() - 5);
-            if (data.getRemainingKissTicks() <= 0) {
-                endKiss(player);
-                return;
-            }
         }
 
         Player target = player.level().getPlayerByUUID(targetId);
-        if (target == null || !target.isAlive() || target.distanceToSqr(player) > 16.0) {
-            endKiss(player);
-            return;
-        }
-        KissPlayerData targetData = target.getData(ModAttachments.kissData());
-        if (!targetData.isKissing() || !targetId.equals(targetData.getTargetUUID())) {
-            endKiss(player);
-            return;
+
+        switch (data.getKissPhase()) {
+            case ENTERING -> {
+                if (target == null || !target.isAlive()) {
+                    cleanupKiss(player);
+                    return;
+                }
+                KissPoseManager.tickPosition((ServerPlayer) player, data);
+            }
+            case HOLDING -> {
+                if (target == null || !target.isAlive() || target.distanceToSqr(player) > 16.0) {
+                    cleanupKiss(player);
+                    return;
+                }
+                KissPlayerData targetData = target.getData(ModAttachments.kissData());
+                if (!targetData.isKissing() || !targetId.equals(targetData.getTargetUUID())) {
+                    cleanupKiss(player);
+                    return;
+                }
+                KissPoseManager.tickPosition((ServerPlayer) player, data);
+                if (data.getRemainingKissTicks() <= 0) {
+                    beginExit(player, data);
+                }
+            }
+            case EXITING -> {
+                KissPoseManager.tickPosition((ServerPlayer) player, data);
+                if (data.getKissPhaseTicks() >= KissPlayerData.EXIT_TICKS) {
+                    if (Config.ENABLE_CHAT_MESSAGE.get() && target != null
+                            && player.getUUID().compareTo(targetId) < 0) {
+                        Component msg = Component.translatable("chat.kissmod.kiss_ended",
+                                player.getName(), target.getName());
+                        player.getServer().getPlayerList().broadcastSystemMessage(msg, false);
+                    }
+                    cleanupKiss(player);
+                }
+            }
         }
     }
 
@@ -127,7 +152,26 @@ public class KissDetectionHandler {
         data.setTotalKisses(data.getTotalKisses() + 1);
         targetData.setTotalKisses(targetData.getTotalKisses() + 1);
 
-        var packet = new KissExecutePacket(player.getUUID(), target.getUUID(), duration);
+        Vec3 hugA = null, hugB = null, origA = null, origB = null;
+        if (player instanceof ServerPlayer sp && target instanceof ServerPlayer st) {
+            Vec3[] positions = KissPoseManager.computeHugPositions(sp, st);
+            hugA = positions[0];
+            hugB = positions[1];
+            origA = player.position();
+            origB = target.position();
+
+            data.setOriginalPos(origA);
+            data.setHugPos(hugA);
+            data.setKissPhase(KissPhase.ENTERING);
+            data.setKissPhaseTicks(0);
+            targetData.setOriginalPos(origB);
+            targetData.setHugPos(hugB);
+            targetData.setKissPhase(KissPhase.ENTERING);
+            targetData.setKissPhaseTicks(0);
+        }
+
+        var packet = new KissExecutePacket(player.getUUID(), target.getUUID(), duration,
+                hugA, hugB, origA, origB);
         PacketDistributor.sendToPlayersInDimension((ServerLevel) player.level(), packet);
 
         Vec3 mid = player.getEyePosition().add(target.getEyePosition()).scale(0.5);
@@ -150,6 +194,16 @@ public class KissDetectionHandler {
     }
 
     public static void endKiss(Player player) {
+        cleanupKiss(player);
+    }
+
+    private static void beginExit(Player player, KissPlayerData data) {
+        if (data.getKissPhase() == KissPhase.EXITING) return;
+        data.setKissPhase(KissPhase.EXITING);
+        data.setKissPhaseTicks(0);
+    }
+
+    private static void cleanupKiss(Player player) {
         KissPlayerData data = player.getData(ModAttachments.kissData());
         if (!data.isKissing()) return;
 
@@ -212,10 +266,20 @@ public class KissDetectionHandler {
     }
 
     @SubscribeEvent
+    public void onLivingDamagePre(LivingDamageEvent.Pre event) {
+        if (event.getEntity() instanceof Player player && !player.level().isClientSide()) {
+            KissPlayerData data = player.getData(ModAttachments.kissData());
+            if (data.isKissing() && data.getKissPhase() != KissPhase.NONE) {
+                event.setNewDamage(0);
+            }
+        }
+    }
+
+    @SubscribeEvent
     public void onPlayerDamage(LivingDamageEvent.Post event) {
         if (event.getEntity() instanceof Player player && !player.level().isClientSide()) {
             KissPlayerData data = player.getData(ModAttachments.kissData());
-            if (data.isKissing()) endKiss(player);
+            if (data.isKissing() && event.getNewDamage() > 0) endKiss(player);
         }
     }
 

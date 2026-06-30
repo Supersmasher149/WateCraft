@@ -34,6 +34,15 @@ public class CommandHandler {
                             return 1;
                         })
                 )
+                .then(Commands.literal("stats")
+                        .executes(ctx -> {
+                            Player player = ctx.getSource().getPlayerOrException();
+                            KissPlayerData data = player.getData(ModAttachments.kissData());
+                            ctx.getSource().sendSuccess(() ->
+                                    Component.literal("Your kiss stats: " + data.getTotalKisses() + " total kisses"), false);
+                            return 1;
+                        })
+                )
                 .then(Commands.literal("debug")
                         .requires(source -> Config.DEBUG_MODE.get() && source.hasPermission(2))
                         .then(Commands.literal("state").executes(ctx -> debugState(ctx.getSource())))
